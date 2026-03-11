@@ -1543,6 +1543,9 @@ function toggleLike(postId) {
     
     count.textContent = post.likes;
     lucide.createIcons();
+    
+    // localStorage에 저장
+    savePostsToStorage();
 }
 
 function addComment(postId) {
@@ -1572,6 +1575,10 @@ function addComment(postId) {
     if (post) post.comments++;
     
     input.value = '';
+    
+    // localStorage에 저장
+    savePostsToStorage();
+    saveCommentsToStorage();
     
     // 댓글 목록 업데이트
     document.getElementById(`comments-${postId}`).innerHTML = renderComments(comments[postId], postId);
@@ -1614,6 +1621,9 @@ function addReply(postId, commentId) {
     
     input.value = '';
     document.getElementById(`reply-input-${commentId}`).classList.add('hidden');
+    
+    // localStorage에 저장
+    saveCommentsToStorage();
     
     // 댓글 목록 업데이트
     document.getElementById(`comments-${postId}`).innerHTML = renderComments(comments[postId], postId);
@@ -1802,6 +1812,9 @@ function submitVote(voteId) {
         vote.myVote = optionId;
         vote.currentVotes++;
         option.votes++;
+        
+        // localStorage에 저장
+        saveVotesToStorage();
         
         renderVotes();
         
@@ -2680,6 +2693,10 @@ function submitPost() {
     posts.unshift(newPost);
     comments[newPost.id] = [];
     
+    // localStorage에 저장
+    savePostsToStorage();
+    saveCommentsToStorage();
+    
     closeWriteModal();
     showPage('community');
     renderPosts();
@@ -2939,6 +2956,10 @@ function participateSurvey(id) {
     if (confirm(`"${survey.title}"에 참여하시겠습니까?`)) {
         survey.participated = true;
         survey.currentVotes++;
+        
+        // localStorage에 저장
+        saveSurveysToStorage();
+        
         renderSurveys();
         showToast('✅ 참여가 완료되었습니다!');
     }
@@ -2946,15 +2967,23 @@ function participateSurvey(id) {
 
 // ===== Task 3: 소유자 명부 + 관리자 대시보드 =====
 let owners = [];
-for (let i = 1; i <= 50; i++) {
-    owners.push({
-        id: i,
-        name: '김소유' + i,
-        address: '서초구 잠원동 ' + (100 + i) + '-' + (i % 10),
-        area: 25 + Math.floor(Math.random() * 20),
-        verified: Math.random() > 0.3,
-        lastActivity: Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000
-    });
+
+// 초기 더미 데이터 생성 (localStorage에 없을 때만)
+function initializeOwners() {
+    if (owners.length === 0) {
+        for (let i = 1; i <= 50; i++) {
+            owners.push({
+                id: i,
+                name: '김소유' + i,
+                address: '서초구 잠원동 ' + (100 + i) + '-' + (i % 10),
+                area: 25 + Math.floor(Math.random() * 20),
+                verified: Math.random() > 0.3,
+                lastActivity: Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000
+            });
+        }
+        console.log('✅ 소유자 명부 초기 데이터 생성:', owners.length + '명');
+    }
+}
 }
 
 function switchAdminTab(tab) {
@@ -3285,6 +3314,106 @@ function saveUsersToStorage() {
     localStorage.setItem('jeongbitalk_users', JSON.stringify(users));
 }
 
+// ===== localStorage 데이터 저장/로드 시스템 =====
+function loadAllDataFromStorage() {
+    console.log('📦 localStorage에서 데이터 로드 중...');
+    
+    // 게시글 로드
+    const storedPosts = localStorage.getItem('jeongbitalk_posts');
+    if (storedPosts) {
+        posts = JSON.parse(storedPosts);
+        console.log('✅ 게시글 로드:', posts.length + '개');
+    } else {
+        console.log('ℹ️ 저장된 게시글 없음, 더미 데이터 사용');
+    }
+    
+    // 댓글 로드
+    const storedComments = localStorage.getItem('jeongbitalk_comments');
+    if (storedComments) {
+        comments = JSON.parse(storedComments);
+        console.log('✅ 댓글 로드 완료');
+    } else {
+        console.log('ℹ️ 저장된 댓글 없음, 더미 데이터 사용');
+    }
+    
+    // 투표 로드
+    const storedVotes = localStorage.getItem('jeongbitalk_votes');
+    if (storedVotes) {
+        votes = JSON.parse(storedVotes);
+        console.log('✅ 투표 로드:', votes.length + '개');
+    } else {
+        console.log('ℹ️ 저장된 투표 없음, 더미 데이터 사용');
+    }
+    
+    // 설문조사 로드
+    const storedSurveys = localStorage.getItem('jeongbitalk_surveys');
+    if (storedSurveys) {
+        surveys = JSON.parse(storedSurveys);
+        console.log('✅ 설문조사 로드:', surveys.length + '개');
+    } else {
+        console.log('ℹ️ 저장된 설문조사 없음, 더미 데이터 사용');
+    }
+    
+    // 소유자 명부 로드
+    const storedOwners = localStorage.getItem('jeongbitalk_owners');
+    if (storedOwners) {
+        owners = JSON.parse(storedOwners);
+        console.log('✅ 소유자 명부 로드:', owners.length + '명');
+    } else {
+        // 소유자 명부는 초기 데이터 생성
+        initializeOwners();
+        saveOwnersToStorage();
+    }
+    
+    console.log('🎉 모든 데이터 로드 완료!');
+}
+
+function savePostsToStorage() {
+    localStorage.setItem('jeongbitalk_posts', JSON.stringify(posts));
+    console.log('💾 게시글 저장:', posts.length + '개');
+}
+
+function saveCommentsToStorage() {
+    localStorage.setItem('jeongbitalk_comments', JSON.stringify(comments));
+    console.log('💾 댓글 저장 완료');
+}
+
+function saveVotesToStorage() {
+    localStorage.setItem('jeongbitalk_votes', JSON.stringify(votes));
+    console.log('💾 투표 저장:', votes.length + '개');
+}
+
+function saveSurveysToStorage() {
+    localStorage.setItem('jeongbitalk_surveys', JSON.stringify(surveys));
+    console.log('💾 설문조사 저장:', surveys.length + '개');
+}
+
+function saveOwnersToStorage() {
+    localStorage.setItem('jeongbitalk_owners', JSON.stringify(owners));
+    console.log('💾 소유자 명부 저장:', owners.length + '명');
+}
+
+function saveAllDataToStorage() {
+    savePostsToStorage();
+    saveCommentsToStorage();
+    saveVotesToStorage();
+    saveSurveysToStorage();
+    saveOwnersToStorage();
+    console.log('✅ 모든 데이터 저장 완료!');
+}
+
+function clearAllData() {
+    if (confirm('⚠️ 모든 데이터를 초기화하시겠습니까?\n\n게시글, 댓글, 투표, 설문조사 등 모든 데이터가 삭제됩니다.\n(회원 정보는 유지됩니다)')) {
+        localStorage.removeItem('jeongbitalk_posts');
+        localStorage.removeItem('jeongbitalk_comments');
+        localStorage.removeItem('jeongbitalk_votes');
+        localStorage.removeItem('jeongbitalk_surveys');
+        localStorage.removeItem('jeongbitalk_owners');
+        alert('✅ 데이터가 초기화되었습니다. 페이지를 새로고침합니다.');
+        location.reload();
+    }
+}
+
 function checkLoginStatus() {
     const stored = localStorage.getItem('jeongbitalk_current_user');
     if (stored) {
@@ -3511,8 +3640,9 @@ function showToast(message) {
 document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
     
-    // localStorage에서 사용자 데이터 로드
+    // localStorage에서 모든 데이터 로드
     loadUsersFromStorage();
+    loadAllDataFromStorage();
     
     // 로그인 상태 체크
     checkLoginStatus();
