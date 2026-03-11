@@ -625,34 +625,130 @@
         </div>
     </div>
 
-    <!-- 단체 문자 탭 -->
+    <!-- 단체 문자/카카오톡 발송 탭 -->
     <div id="admin-sms" class="admin-content hidden">
         <div class="bg-white rounded-xl shadow-md p-6">
-            <h3 class="text-lg font-bold text-gray-900 mb-4">단체 문자 발송</h3>
+            <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <i data-lucide="message-square" class="w-6 h-6 text-blue-600"></i>
+                단체 알림 발송
+            </h3>
             
-            <div class="space-y-4">
+            <div class="space-y-5">
+                <!-- 발송 방식 선택 -->
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-2">발송 대상</label>
-                    <div class="flex gap-2">
-                        <button onclick="selectSmsTarget('all')" class="sms-target-btn active flex-1 px-4 py-2 border-2 border-blue-600 bg-blue-50 text-blue-600 rounded-lg">전체 (1,247명)</button>
-                        <button onclick="selectSmsTarget('verified')" class="sms-target-btn flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg">인증완료 (892명)</button>
-                        <button onclick="selectSmsTarget('unverified')" class="sms-target-btn flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg">미인증 (355명)</button>
+                    <label class="block text-sm font-semibold text-gray-700 mb-3">발송 방식</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="selectMessageType('kakao')" class="message-type-btn active px-4 py-3 border-2 border-yellow-500 bg-yellow-50 rounded-xl transition">
+                            <div class="flex items-center gap-2 justify-center mb-1">
+                                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="#FEE500">
+                                    <path d="M12 3C6.5 3 2 6.6 2 11c0 2.8 1.9 5.3 4.7 6.7-.2.8-.5 1.9-.6 2.2-.1.4.1.4.3.3.2-.1 2.4-1.6 3.3-2.2.8.1 1.5.2 2.3.2 5.5 0 10-3.6 10-8S17.5 3 12 3z"/>
+                                </svg>
+                                <span class="font-semibold text-gray-900">카카오톡 알림톡</span>
+                            </div>
+                            <div class="text-xs text-gray-600">15원/건 · 도달률 99%</div>
+                        </button>
+                        <button onclick="selectMessageType('sms')" class="message-type-btn px-4 py-3 border-2 border-gray-300 rounded-xl transition">
+                            <div class="flex items-center gap-2 justify-center mb-1">
+                                <i data-lucide="message-circle" class="w-6 h-6 text-green-600"></i>
+                                <span class="font-semibold text-gray-900">SMS 문자</span>
+                            </div>
+                            <div class="text-xs text-gray-600">20원/건 · 전국민 수신</div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 발송 대상 -->
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-3">발송 대상</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="selectSmsTarget('all')" class="sms-target-btn active px-4 py-3 border-2 border-blue-600 bg-blue-50 text-blue-600 rounded-lg font-semibold transition">
+                            <div class="text-sm">전체</div>
+                            <div class="text-lg font-bold">1,247명</div>
+                        </button>
+                        <button onclick="selectSmsTarget('verified')" class="sms-target-btn px-4 py-3 border-2 border-gray-300 rounded-lg font-semibold transition hover:border-blue-400">
+                            <div class="text-sm text-gray-600">인증완료</div>
+                            <div class="text-lg font-bold text-gray-900">892명</div>
+                        </button>
+                        <button onclick="selectSmsTarget('unverified')" class="sms-target-btn px-4 py-3 border-2 border-gray-300 rounded-lg font-semibold transition hover:border-blue-400">
+                            <div class="text-sm text-gray-600">미인증</div>
+                            <div class="text-lg font-bold text-gray-900">355명</div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 템플릿 선택 (카카오톡 전용) -->
+                <div id="kakao-template-section">
+                    <label class="block text-sm font-semibold text-gray-700 mb-3">메시지 템플릿</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="loadTemplate('meeting')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm transition">
+                            📅 총회 안내
+                        </button>
+                        <button onclick="loadTemplate('vote')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm transition">
+                            🗳️ 투표 독려
+                        </button>
+                        <button onclick="loadTemplate('notice')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm transition">
+                            📢 공지사항
+                        </button>
+                        <button onclick="loadTemplate('verification')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm transition">
+                            ✅ 인증 독려
+                        </button>
                     </div>
                 </div>
                 
+                <!-- 메시지 내용 -->
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 mb-2">메시지 내용</label>
-                    <textarea id="sms-content" rows="6" placeholder="발송할 메시지를 입력하세요..." class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-2 text-xs text-yellow-800" id="kakao-notice">
+                        💡 카카오톡 알림톡은 사전 승인된 템플릿만 발송 가능합니다. 실제 발송을 위해서는 카카오 비즈니스 계정 등록이 필요합니다.
+                    </div>
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-2 text-xs text-green-800 hidden" id="sms-notice">
+                        💡 SMS는 자유롭게 작성 가능합니다. 90바이트 초과 시 LMS(45원/건)로 자동 전환됩니다.
+                    </div>
+                    <textarea id="sms-content" rows="8" placeholder="발송할 메시지를 입력하세요..." class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-mono text-sm"></textarea>
                     <div class="flex justify-between mt-2 text-sm">
-                        <span class="text-gray-600">예상 비용: <span id="sms-cost" class="font-semibold">0원</span></span>
-                        <span class="text-gray-600"><span id="sms-length">0</span> / 90 bytes</span>
+                        <span class="text-gray-600">예상 비용: <span id="sms-cost" class="font-semibold text-blue-600">0원</span></span>
+                        <span class="text-gray-600"><span id="sms-length">0</span> / <span id="sms-limit">90</span> bytes</span>
+                    </div>
+                </div>
+
+                <!-- 발송 예약 (선택사항) -->
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <label class="flex items-center gap-2 cursor-pointer mb-3">
+                        <input type="checkbox" id="schedule-send" class="w-4 h-4 text-blue-600 rounded">
+                        <span class="text-sm font-semibold text-gray-700">예약 발송</span>
+                    </label>
+                    <div id="schedule-options" class="hidden space-y-2">
+                        <input type="datetime-local" id="schedule-time" class="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm">
+                        <p class="text-xs text-gray-600">⏰ 지정한 시간에 자동으로 발송됩니다</p>
                     </div>
                 </div>
                 
-                <button onclick="sendBulkSMS()" class="w-full px-6 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-semibold flex items-center justify-center gap-2">
+                <!-- 발송 버튼 -->
+                <button onclick="sendBulkMessage()" class="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition font-bold text-lg flex items-center justify-center gap-2 shadow-lg">
                     <i data-lucide="send" class="w-5 h-5"></i>
-                    <span>문자 발송하기</span>
+                    <span id="send-button-text">카카오톡 발송하기</span>
                 </button>
+
+                <!-- 발송 내역 -->
+                <div class="border-t pt-4 mt-4">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-3">최근 발송 내역</h4>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                            <div>
+                                <div class="font-semibold text-gray-900">총회 안내 (카카오톡)</div>
+                                <div class="text-xs text-gray-600">2025-03-11 14:30 · 전체 1,247명</div>
+                            </div>
+                            <span class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full font-semibold">발송 완료</span>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                            <div>
+                                <div class="font-semibold text-gray-900">투표 독려 (SMS)</div>
+                                <div class="text-xs text-gray-600">2025-03-10 10:00 · 미인증 355명</div>
+                            </div>
+                            <span class="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full font-semibold">발송 완료</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -919,6 +1015,7 @@ let currentSurveyFilter = 'survey';
 let currentAdminTab = 'owners';
 let currentOwnerFilter = 'all';
 let currentSmsTarget = 'all';
+let currentMessageType = 'kakao'; // 'kakao' or 'sms'
 let isLoggedIn = false; // 로그인 여부
 let currentUser = null; // 현재 사용자 정보
 let isVerified = false;
@@ -3007,8 +3104,148 @@ function updateSmsCost() {
     if (currentSmsTarget === 'verified') count = 892;
     if (currentSmsTarget === 'unverified') count = 355;
     
-    const cost = count * 20;
+    // 카카오톡: 15원/건, SMS: 20원/건, LMS(90바이트 초과): 45원/건
+    let costPerMessage = 20; // 기본 SMS
+    if (currentMessageType === 'kakao') {
+        costPerMessage = 15;
+    } else if (length > 90) {
+        costPerMessage = 45; // LMS
+    }
+    
+    const cost = count * costPerMessage;
     document.getElementById('sms-cost').textContent = cost.toLocaleString() + '원';
+}
+
+// ===== 단체 알림 발송 시스템 =====
+function selectMessageType(type) {
+    currentMessageType = type;
+    
+    document.querySelectorAll('.message-type-btn').forEach(btn => {
+        btn.classList.remove('active', 'border-yellow-500', 'bg-yellow-50', 'border-green-500', 'bg-green-50');
+        btn.classList.add('border-gray-300');
+    });
+    
+    if (type === 'kakao') {
+        event.target.closest('.message-type-btn').classList.add('active', 'border-yellow-500', 'bg-yellow-50');
+        document.getElementById('kakao-template-section').classList.remove('hidden');
+        document.getElementById('kakao-notice').classList.remove('hidden');
+        document.getElementById('sms-notice').classList.add('hidden');
+        document.getElementById('sms-limit').textContent = '1000'; // 카카오톡은 제한 없음 (1000자 정도)
+        document.getElementById('send-button-text').textContent = '카카오톡 발송하기';
+    } else {
+        event.target.closest('.message-type-btn').classList.add('active', 'border-green-500', 'bg-green-50');
+        document.getElementById('kakao-template-section').classList.add('hidden');
+        document.getElementById('kakao-notice').classList.add('hidden');
+        document.getElementById('sms-notice').classList.remove('hidden');
+        document.getElementById('sms-limit').textContent = '90';
+        document.getElementById('send-button-text').textContent = 'SMS 발송하기';
+    }
+    
+    updateSmsCost();
+}
+
+function loadTemplate(type) {
+    const templates = {
+        meeting: `[신반포4지구 추진위원회]
+
+📅 2025년 1차 정기총회 안내
+
+일시: 2025년 4월 15일(화) 14:00
+장소: 반포종합운동장 2층 대회의실
+
+안건:
+• 시공사 선정
+• 관리처분계획 승인
+• 기타 주요 사항
+
+많은 참석 부탁드립니다.
+
+▶ 자세히 보기: https://정비톡.kr`,
+        
+        vote: `[신반포4지구 투표 독려]
+
+🗳️ 진행중인 투표가 있습니다!
+
+주제: 시공사 선정 투표
+마감: 2025년 3월 20일 23:59
+
+현재 참여율: 67%
+여러분의 소중한 의견을 기다립니다.
+
+▶ 지금 투표하기: https://정비톡.kr/vote`,
+        
+        notice: `[신반포4지구 공지]
+
+📢 중요 안내사항
+
+서울시 재건축 용적률 규제가 완화되었습니다.
+(기존 250% → 최대 300%)
+
+우리 단지 혜택 여부를 추진위원회에서 검토 중입니다.
+
+자세한 내용은 커뮤니티를 확인해주세요.
+
+▶ 바로가기: https://정비톡.kr`,
+        
+        verification: `[신반포4지구 인증 독려]
+
+✅ 소유자 인증을 완료해주세요!
+
+인증 혜택:
+• 소유자 전용 커뮤니티 참여
+• 법적 효력 있는 전자투표 참여
+• 단지 소식 및 정보 우선 제공
+
+소요시간: 약 3분
+보안: AES-256 암호화
+
+▶ 지금 인증하기: https://정비톡.kr`
+    };
+    
+    document.getElementById('sms-content').value = templates[type];
+    updateSmsCost();
+    showToast('✅ 템플릿이 불러와졌습니다');
+}
+
+function sendBulkMessage() {
+    const content = document.getElementById('sms-content').value.trim();
+    if (!content) {
+        alert('메시지 내용을 입력해주세요.');
+        return;
+    }
+    
+    const targetCount = currentSmsTarget === 'all' ? 1247 : currentSmsTarget === 'verified' ? 892 : 355;
+    const messageTypeName = currentMessageType === 'kakao' ? '카카오톡 알림톡' : 'SMS 문자';
+    const cost = document.getElementById('sms-cost').textContent;
+    
+    const scheduleEnabled = document.getElementById('schedule-send').checked;
+    let scheduleTime = '';
+    if (scheduleEnabled) {
+        scheduleTime = document.getElementById('schedule-time').value;
+        if (!scheduleTime) {
+            alert('예약 시간을 선택해주세요.');
+            return;
+        }
+    }
+    
+    const confirmMessage = scheduleEnabled 
+        ? `${messageTypeName}을 예약 발송하시겠습니까?\n\n발송 대상: ${targetCount}명\n예상 비용: ${cost}\n발송 시간: ${scheduleTime}`
+        : `${messageTypeName}을 즉시 발송하시겠습니까?\n\n발송 대상: ${targetCount}명\n예상 비용: ${cost}`;
+    
+    if (confirm(confirmMessage)) {
+        const emoji = currentMessageType === 'kakao' ? '💬' : '📱';
+        showToast(`${emoji} ${messageTypeName} 발송 중...`);
+        
+        setTimeout(() => {
+            if (scheduleEnabled) {
+                showToast(`✅ ${messageTypeName}이 예약되었습니다! (${scheduleTime})`);
+            } else {
+                showToast(`✅ ${targetCount}명에게 ${messageTypeName}이 발송되었습니다!`);
+            }
+            document.getElementById('sms-content').value = '';
+            updateSmsCost();
+        }, 2000);
+    }
 }
 
 function sendBulkSMS() {
@@ -3212,6 +3449,14 @@ function updateUIAfterLogin() {
     document.getElementById('home-avatar').textContent = firstChar;
     document.getElementById('home-user-name').textContent = currentUser.name + '님';
     
+    // 관리자 체크 (김재건 또는 추진위원회)
+    if (currentUser.name === '김재건' || currentUser.name === '추진위원회') {
+        isAdmin = true;
+        document.getElementById('admin-nav').classList.remove('hidden');
+        console.log('👑 관리자 권한 활성화:', currentUser.name);
+        showToast('👑 관리자로 로그인되었습니다!');
+    }
+    
     // 인증 전이면 소유 단지 숨기기
     if (!isVerified) {
         document.getElementById('home-unverified-notice').classList.remove('hidden');
@@ -3291,6 +3536,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const smsInput = document.getElementById('sms-content');
         if (smsInput) {
             smsInput.addEventListener('input', updateSmsCost);
+        }
+        
+        // 예약 발송 체크박스
+        const scheduleCheckbox = document.getElementById('schedule-send');
+        if (scheduleCheckbox) {
+            scheduleCheckbox.addEventListener('change', (e) => {
+                const scheduleOptions = document.getElementById('schedule-options');
+                if (e.target.checked) {
+                    scheduleOptions.classList.remove('hidden');
+                    // 현재 시간 + 1시간으로 기본값 설정
+                    const now = new Date();
+                    now.setHours(now.getHours() + 1);
+                    document.getElementById('schedule-time').value = now.toISOString().slice(0, 16);
+                } else {
+                    scheduleOptions.classList.add('hidden');
+                }
+            });
         }
     }, 100);
     
