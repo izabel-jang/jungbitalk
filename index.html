@@ -8,6 +8,8 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <!-- Kakao 주소 검색 API -->
     <script src="//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
+    <!-- ECharts for 분담금 계산기 차트 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
     <style>
         @keyframes beat { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
         .beat { animation: beat 0.3s ease-in-out; }
@@ -72,26 +74,35 @@
                 <button onclick="showPage('home')" class="nav-link hover:text-blue-200 transition">홈</button>
                 <button onclick="showPage('community')" class="nav-link hover:text-blue-200 transition">커뮤니티</button>
                 <button onclick="showPage('vote')" class="nav-link hover:text-blue-200 transition">투표</button>
+                <button onclick="showPage('calculator')" class="nav-link hover:text-blue-200 transition">분담금계산</button>
+                <button onclick="showPage('survey')" class="nav-link hover:text-blue-200 transition">설문조사</button>
+                <button onclick="showPage('admin')" class="nav-link hover:text-blue-200 transition hidden" id="admin-nav">관리자</button>
             </nav>
             
             <!-- 사용자 프로필 -->
-            <div class="relative">
-                <button onclick="toggleProfileMenu()" class="flex items-center gap-2 hover:bg-white/10 px-3 py-2 rounded-lg transition">
-                    <div class="w-8 h-8 rounded-full bg-blue-400 flex items-center justify-center font-semibold">김</div>
+            <div class="relative" id="user-profile-area">
+                <!-- 로그인 전: 로그인 버튼 -->
+                <button onclick="showAuthModal()" id="login-button" class="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg transition font-semibold">
+                    로그인
+                </button>
+                
+                <!-- 로그인 후: 프로필 -->
+                <button onclick="toggleProfileMenu()" id="profile-button" class="hidden flex items-center gap-2 hover:bg-white/10 px-3 py-2 rounded-lg transition">
+                    <div class="w-8 h-8 rounded-full bg-blue-400 flex items-center justify-center font-semibold" id="user-avatar">김</div>
                     <div class="hidden md:block text-left">
-                        <div class="text-sm font-semibold">김재건</div>
+                        <div class="text-sm font-semibold" id="user-name-header">김재건</div>
                         <div id="auth-status-header" class="text-xs text-blue-200">미인증</div>
                     </div>
                     <i data-lucide="chevron-down" class="w-4 h-4"></i>
                 </button>
                 
                 <!-- 드롭다운 메뉴 -->
-                <div id="profile-menu" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl overflow-hidden">
+                <div id="profile-menu" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl overflow-hidden z-50">
                     <div class="p-4 bg-gradient-to-r from-blue-50 to-indigo-50">
                         <div class="flex items-center gap-3">
-                            <div class="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center font-bold text-white text-lg">김</div>
+                            <div class="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center font-bold text-white text-lg" id="user-avatar-menu">김</div>
                             <div>
-                                <div class="font-semibold text-gray-900">김재건</div>
+                                <div class="font-semibold text-gray-900" id="user-name-menu">김재건</div>
                                 <div id="auth-status-dropdown" class="text-xs text-gray-600">소유자 · 미인증</div>
                             </div>
                         </div>
@@ -110,7 +121,7 @@
                             설정
                         </button>
                         <hr class="my-2">
-                        <button class="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-red-600">
+                        <button onclick="handleLogout()" class="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2 text-red-600">
                             <i data-lucide="log-out" class="w-4 h-4"></i>
                             로그아웃
                         </button>
@@ -130,9 +141,9 @@
     <div class="bg-white rounded-2xl shadow-md p-6 mb-6">
         <div class="flex items-start justify-between">
             <div class="flex items-center gap-4">
-                <div class="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center font-bold text-white text-2xl">김</div>
+                <div id="home-avatar" class="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center font-bold text-white text-2xl">김</div>
                 <div>
-                    <h2 class="text-2xl font-bold text-gray-900">김재건님</h2>
+                    <h2 id="home-user-name" class="text-2xl font-bold text-gray-900">김재건님</h2>
                     <div class="flex items-center gap-2 mt-1">
                         <span class="text-sm text-gray-600">소유자</span>
                         <span id="auth-badge-home" class="text-xs px-2 py-0.5 bg-gray-200 text-gray-700 rounded">미인증</span>
@@ -141,12 +152,25 @@
             </div>
         </div>
         
-        <div class="mt-4 p-4 bg-blue-50 rounded-xl">
+        <!-- 인증 전: 인증 유도 메시지 -->
+        <div id="home-unverified-notice" class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+            <div class="flex items-center gap-2 mb-2">
+                <i data-lucide="alert-circle" class="w-5 h-5 text-yellow-600"></i>
+                <span class="font-semibold text-gray-900">소유자 인증이 필요합니다</span>
+            </div>
+            <div class="text-sm text-gray-600 mb-3">등기부등본 인증 후 소유 단지 정보를 확인하고 커뮤니티에 참여할 수 있습니다</div>
+            <button onclick="startVerification()" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition text-sm font-semibold">
+                지금 인증하기 →
+            </button>
+        </div>
+        
+        <!-- 인증 후: 소유 단지 정보 -->
+        <div id="home-verified-district" class="hidden mt-4 p-4 bg-blue-50 rounded-xl">
             <div class="flex items-center gap-2 mb-2">
                 <i data-lucide="map-pin" class="w-5 h-5 text-blue-600"></i>
-                <span class="font-semibold text-gray-900">신반포4지구</span>
+                <span id="home-district-name" class="font-semibold text-gray-900">-</span>
             </div>
-            <div class="text-sm text-gray-600">조합설립인가 단계 · 2025년 3월 진행중</div>
+            <div id="home-district-info" class="text-sm text-gray-600">조합설립인가 단계 · 2025년 3월 진행중</div>
         </div>
     </div>
 
@@ -323,6 +347,317 @@
     </div>
 </div>
 
+<!-- AI 분담금 계산기 페이지 -->
+<div id="page-calculator" class="page hidden">
+    <div class="max-w-6xl mx-auto">
+        <!-- 헤더 -->
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl shadow-lg p-8 mb-6 text-white">
+            <div class="flex items-center gap-3 mb-3">
+                <i data-lucide="calculator" class="w-10 h-10"></i>
+                <h2 class="text-3xl font-bold">AI 분담금 계산기</h2>
+            </div>
+            <p class="text-blue-100">재건축 예상 분담금을 AI가 분석하여 계산해드립니다</p>
+        </div>
+
+        <div class="grid lg:grid-cols-2 gap-6">
+            <!-- 입력 폼 -->
+            <div class="bg-white rounded-2xl shadow-md p-6">
+                <h3 class="text-lg font-bold text-gray-900 mb-4">정보 입력</h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">현재 평수 (전용면적)</label>
+                        <div class="flex gap-2">
+                            <input type="number" id="current-area" placeholder="25" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <span class="flex items-center px-3 text-gray-600">평</span>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">희망 평수 (증평/감평)</label>
+                        <div class="flex gap-2">
+                            <input type="number" id="target-area" placeholder="35" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <span class="flex items-center px-3 text-gray-600">평</span>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">현재 층수</label>
+                        <select id="current-floor" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="low">저층 (1~5층)</option>
+                            <option value="mid" selected>중층 (6~15층)</option>
+                            <option value="high">고층 (16층 이상)</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">향</label>
+                        <div class="grid grid-cols-4 gap-2">
+                            <button onclick="selectDirection('남향')" class="direction-btn px-3 py-2 border-2 border-gray-300 rounded-lg hover:border-blue-500 transition text-sm">남향</button>
+                            <button onclick="selectDirection('남동')" class="direction-btn px-3 py-2 border-2 border-gray-300 rounded-lg hover:border-blue-500 transition text-sm">남동</button>
+                            <button onclick="selectDirection('남서')" class="direction-btn px-3 py-2 border-2 border-gray-300 rounded-lg hover:border-blue-500 transition text-sm">남서</button>
+                            <button onclick="selectDirection('동향')" class="direction-btn px-3 py-2 border-2 border-gray-300 rounded-lg hover:border-blue-500 transition text-sm">동향</button>
+                            <button onclick="selectDirection('서향')" class="direction-btn px-3 py-2 border-2 border-gray-300 rounded-lg hover:border-blue-500 transition text-sm">서향</button>
+                            <button onclick="selectDirection('북향')" class="direction-btn px-3 py-2 border-2 border-gray-300 rounded-lg hover:border-blue-500 transition text-sm">북향</button>
+                            <button onclick="selectDirection('북동')" class="direction-btn px-3 py-2 border-2 border-gray-300 rounded-lg hover:border-blue-500 transition text-sm">북동</button>
+                            <button onclick="selectDirection('북서')" class="direction-btn px-3 py-2 border-2 border-gray-300 rounded-lg hover:border-blue-500 transition text-sm">북서</button>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">시공사 선택</label>
+                        <select id="construction-company" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <option value="580">A건설 (평당 580만원)</option>
+                            <option value="610">B건설 (평당 610만원)</option>
+                            <option value="595">C건설 (평당 595만원)</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">현재 아파트 감정가</label>
+                        <div class="flex gap-2">
+                            <input type="number" id="current-value" placeholder="60000" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            <span class="flex items-center px-3 text-gray-600">만원</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <button onclick="calculateCost()" class="w-full mt-6 px-6 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-semibold text-lg flex items-center justify-center gap-2">
+                    <i data-lucide="sparkles" class="w-5 h-5"></i>
+                    <span>AI 분담금 계산하기</span>
+                </button>
+            </div>
+            
+            <!-- 결과 영역 -->
+            <div id="calculator-result" class="hidden">
+                <div class="bg-white rounded-2xl shadow-md p-6 mb-4">
+                    <div class="flex items-center gap-2 mb-4">
+                        <i data-lucide="sparkles" class="w-6 h-6 text-blue-600"></i>
+                        <h3 class="text-lg font-bold text-gray-900">AI 분석 결과</h3>
+                    </div>
+                    
+                    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 mb-4">
+                        <div class="text-sm text-gray-600 mb-2">예상 분담금</div>
+                        <div class="text-4xl font-bold text-blue-600" id="result-amount">0원</div>
+                        <div class="text-sm text-gray-600 mt-2" id="result-per-pyeong">평당 0만원</div>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                            <span class="text-sm text-gray-600">신규 평수</span>
+                            <span class="font-semibold" id="result-new-area">0평</span>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                            <span class="text-sm text-gray-600">증평 분담금</span>
+                            <span class="font-semibold text-red-600" id="result-construction">0만원</span>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                            <span class="text-sm text-gray-600">기존 감정가 환급</span>
+                            <span class="font-semibold text-green-600" id="result-refund">-0만원</span>
+                        </div>
+                        <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                            <span class="text-sm text-gray-600">프리미엄 (층/향)</span>
+                            <span class="font-semibold text-orange-600" id="result-premium">+0만원</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-2xl shadow-md p-6">
+                    <h4 class="font-bold text-gray-900 mb-3">유사 단지 비교</h4>
+                    <div id="comparison-chart" style="height: 300px;"></div>
+                </div>
+            </div>
+            
+            <div id="calculator-placeholder" class="bg-white rounded-2xl shadow-md p-12 flex flex-col items-center justify-center text-center">
+                <div class="w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center mb-4">
+                    <i data-lucide="calculator" class="w-12 h-12 text-blue-600"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2">분담금을 계산해보세요</h3>
+                <p class="text-gray-600">좌측에 정보를 입력하고<br>AI 분석을 시작하세요</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 전자 설문조사 페이지 -->
+<div id="page-survey" class="page hidden">
+    <!-- 통계 카드 -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-xl shadow-md p-4">
+            <div class="text-sm text-gray-600 mb-1">진행중 설문</div>
+            <div class="text-3xl font-bold text-blue-600">3</div>
+        </div>
+        <div class="bg-white rounded-xl shadow-md p-4">
+            <div class="text-sm text-gray-600 mb-1">내 참여</div>
+            <div class="text-3xl font-bold text-green-600">5</div>
+        </div>
+        <div class="bg-white rounded-xl shadow-md p-4">
+            <div class="text-sm text-gray-600 mb-1">평균 참여율</div>
+            <div class="text-3xl font-bold text-indigo-600">82%</div>
+        </div>
+        <div class="bg-white rounded-xl shadow-md p-4">
+            <div class="text-sm text-gray-600 mb-1">전체 설문</div>
+            <div class="text-3xl font-bold text-purple-600">7</div>
+        </div>
+    </div>
+
+    <!-- 탭 전환 -->
+    <div class="bg-white rounded-xl shadow-md p-4 mb-6">
+        <div class="flex gap-2">
+            <button onclick="filterSurveys('survey')" class="survey-tab-btn active px-4 py-2 rounded-lg">📋 설문조사 (5)</button>
+            <button onclick="filterSurveys('consent')" class="survey-tab-btn px-4 py-2 rounded-lg">📜 전자 동의서 (2)</button>
+        </div>
+    </div>
+
+    <!-- 설문/동의서 목록 -->
+    <div class="grid md:grid-cols-2 gap-6" id="surveys-container">
+        <!-- 동적 렌더링 -->
+    </div>
+</div>
+
+<!-- 관리자 대시보드 페이지 -->
+<div id="page-admin" class="page hidden">
+    <div class="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl shadow-lg p-8 mb-6 text-white">
+        <div class="flex items-center gap-3 mb-3">
+            <i data-lucide="shield-check" class="w-10 h-10"></i>
+            <h2 class="text-3xl font-bold">관리자 대시보드</h2>
+        </div>
+        <p class="text-purple-100">신반포4지구 추진위원회 전용</p>
+    </div>
+
+    <!-- 주요 통계 -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-xl shadow-md p-4">
+            <div class="text-sm text-gray-600 mb-1">전체 조합원</div>
+            <div class="text-3xl font-bold text-blue-600">1,247</div>
+            <div class="text-xs text-green-600 mt-1">+12 (이번 달)</div>
+        </div>
+        <div class="bg-white rounded-xl shadow-md p-4">
+            <div class="text-sm text-gray-600 mb-1">인증 완료</div>
+            <div class="text-3xl font-bold text-green-600">892</div>
+            <div class="text-xs text-gray-600 mt-1">71.5%</div>
+        </div>
+        <div class="bg-white rounded-xl shadow-md p-4">
+            <div class="text-sm text-gray-600 mb-1">이번 주 활동</div>
+            <div class="text-3xl font-bold text-indigo-600">534</div>
+            <div class="text-xs text-gray-600 mt-1">게시글 42 / 댓글 89</div>
+        </div>
+        <div class="bg-white rounded-xl shadow-md p-4">
+            <div class="text-sm text-gray-600 mb-1">평균 참여율</div>
+            <div class="text-3xl font-bold text-purple-600">78%</div>
+            <div class="text-xs text-green-600 mt-1">+5% (전월 대비)</div>
+        </div>
+    </div>
+
+    <!-- 탭 메뉴 -->
+    <div class="bg-white rounded-xl shadow-md p-4 mb-6">
+        <div class="flex gap-2 overflow-x-auto">
+            <button onclick="switchAdminTab('owners')" class="admin-tab active px-4 py-2 rounded-lg whitespace-nowrap">소유자 명부</button>
+            <button onclick="switchAdminTab('participation')" class="admin-tab px-4 py-2 rounded-lg whitespace-nowrap">참여율 분석</button>
+            <button onclick="switchAdminTab('posts')" class="admin-tab px-4 py-2 rounded-lg whitespace-nowrap">게시글 관리</button>
+            <button onclick="switchAdminTab('sms')" class="admin-tab px-4 py-2 rounded-lg whitespace-nowrap">단체 문자</button>
+        </div>
+    </div>
+
+    <!-- 소유자 명부 탭 -->
+    <div id="admin-owners" class="admin-content">
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-gray-900">소유자 명부 (1,247명)</h3>
+                <div class="flex gap-2">
+                    <input type="text" id="owner-search" placeholder="이름/주소 검색..." class="px-4 py-2 border border-gray-300 rounded-lg text-sm">
+                    <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm">
+                        <i data-lucide="download" class="w-4 h-4 inline mr-1"></i>엑셀 다운로드
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 필터 -->
+            <div class="flex gap-2 mb-4">
+                <button onclick="filterOwners('all')" class="owner-filter active px-3 py-1 rounded text-sm">전체</button>
+                <button onclick="filterOwners('verified')" class="owner-filter px-3 py-1 rounded text-sm">인증완료</button>
+                <button onclick="filterOwners('unverified')" class="owner-filter px-3 py-1 rounded text-sm">미인증</button>
+            </div>
+            
+            <!-- 테이블 -->
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">번호</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">이름</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">주소</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">평수</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">인증상태</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">최근활동</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600">관리</th>
+                        </tr>
+                    </thead>
+                    <tbody id="owners-table" class="divide-y divide-gray-200">
+                        <!-- 동적 렌더링 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 참여율 분석 탭 -->
+    <div id="admin-participation" class="admin-content hidden">
+        <div class="grid md:grid-cols-2 gap-6">
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h4 class="font-bold text-gray-900 mb-4">투표별 참여율</h4>
+                <div id="participation-chart" style="height: 300px;"></div>
+            </div>
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h4 class="font-bold text-gray-900 mb-4">월별 활동 추이</h4>
+                <div id="activity-chart" style="height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 게시글 관리 탭 -->
+    <div id="admin-posts" class="admin-content hidden">
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">게시글 관리</h3>
+            <div class="space-y-2" id="admin-posts-list">
+                <!-- 동적 렌더링 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 단체 문자 탭 -->
+    <div id="admin-sms" class="admin-content hidden">
+        <div class="bg-white rounded-xl shadow-md p-6">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">단체 문자 발송</h3>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">발송 대상</label>
+                    <div class="flex gap-2">
+                        <button onclick="selectSmsTarget('all')" class="sms-target-btn active flex-1 px-4 py-2 border-2 border-blue-600 bg-blue-50 text-blue-600 rounded-lg">전체 (1,247명)</button>
+                        <button onclick="selectSmsTarget('verified')" class="sms-target-btn flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg">인증완료 (892명)</button>
+                        <button onclick="selectSmsTarget('unverified')" class="sms-target-btn flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg">미인증 (355명)</button>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">메시지 내용</label>
+                    <textarea id="sms-content" rows="6" placeholder="발송할 메시지를 입력하세요..." class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
+                    <div class="flex justify-between mt-2 text-sm">
+                        <span class="text-gray-600">예상 비용: <span id="sms-cost" class="font-semibold">0원</span></span>
+                        <span class="text-gray-600"><span id="sms-length">0</span> / 90 bytes</span>
+                    </div>
+                </div>
+                
+                <button onclick="sendBulkSMS()" class="w-full px-6 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-semibold flex items-center justify-center gap-2">
+                    <i data-lucide="send" class="w-5 h-5"></i>
+                    <span>문자 발송하기</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 </main>
 
 <!-- 등기부등본 인증 모달 -->
@@ -373,6 +708,108 @@
         <!-- 스텝 컨텐츠 -->
         <div id="verification-content" class="px-6 pb-6">
             <!-- 동적 렌더링 -->
+        </div>
+    </div>
+</div>
+
+<!-- 로그인/회원가입 모달 -->
+<div id="auth-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+        <!-- 헤더 -->
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-t-2xl">
+            <div class="flex items-center gap-3 mb-2">
+                <i data-lucide="building-2" class="w-8 h-8"></i>
+                <h2 class="text-2xl font-bold">정비톡</h2>
+            </div>
+            <p class="text-blue-100 text-sm">재개발·재건축 커뮤니티 플랫폼</p>
+        </div>
+
+        <!-- 탭 전환 -->
+        <div class="flex border-b">
+            <button onclick="switchAuthTab('login')" id="tab-login" class="auth-tab flex-1 px-6 py-4 font-semibold text-blue-600 border-b-2 border-blue-600">
+                로그인
+            </button>
+            <button onclick="switchAuthTab('signup')" id="tab-signup" class="auth-tab flex-1 px-6 py-4 font-semibold text-gray-600">
+                회원가입
+            </button>
+        </div>
+
+        <!-- 로그인 폼 -->
+        <div id="login-form" class="p-6">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">이메일</label>
+                    <input type="email" id="login-email" placeholder="example@email.com" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">비밀번호</label>
+                    <input type="password" id="login-password" placeholder="비밀번호를 입력하세요" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                
+                <div class="flex items-center justify-between text-sm">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="remember-me" class="w-4 h-4 text-blue-600 rounded">
+                        <span class="text-gray-600">로그인 상태 유지</span>
+                    </label>
+                    <a href="#" class="text-blue-600 hover:text-blue-700">비밀번호 찾기</a>
+                </div>
+            </div>
+            
+            <button onclick="handleLogin()" class="w-full mt-6 px-6 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-semibold text-lg">
+                로그인
+            </button>
+            
+            <div class="mt-4 text-center text-sm text-gray-600">
+                계정이 없으신가요? 
+                <button onclick="switchAuthTab('signup')" class="text-blue-600 hover:text-blue-700 font-semibold">회원가입</button>
+            </div>
+        </div>
+
+        <!-- 회원가입 폼 -->
+        <div id="signup-form" class="p-6 hidden">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">이메일</label>
+                    <input type="email" id="signup-email" placeholder="example@email.com" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">비밀번호</label>
+                    <input type="password" id="signup-password" placeholder="8자 이상 입력하세요" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">비밀번호 확인</label>
+                    <input type="password" id="signup-password-confirm" placeholder="비밀번호를 다시 입력하세요" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">이름</label>
+                    <input type="text" id="signup-name" placeholder="홍길동" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">전화번호</label>
+                    <input type="tel" id="signup-phone" placeholder="01012345678" maxlength="11" inputmode="numeric" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                
+                <div class="flex items-start gap-2">
+                    <input type="checkbox" id="agree-terms" class="w-4 h-4 text-blue-600 rounded mt-1">
+                    <label for="agree-terms" class="text-sm text-gray-600">
+                        <span class="text-blue-600 font-semibold cursor-pointer">이용약관</span> 및 <span class="text-blue-600 font-semibold cursor-pointer">개인정보처리방침</span>에 동의합니다
+                    </label>
+                </div>
+            </div>
+            
+            <button onclick="handleSignup()" class="w-full mt-6 px-6 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-semibold text-lg">
+                회원가입
+            </button>
+            
+            <div class="mt-4 text-center text-sm text-gray-600">
+                이미 계정이 있으신가요? 
+                <button onclick="switchAuthTab('login')" class="text-blue-600 hover:text-blue-700 font-semibold">로그인</button>
+            </div>
         </div>
     </div>
 </div>
@@ -446,15 +883,23 @@
 <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-30">
     <div class="flex justify-around py-2">
         <button onclick="showPage('home')" class="mobile-nav-btn flex flex-col items-center p-2 text-blue-600">
-            <i data-lucide="home" class="w-6 h-6"></i>
+            <i data-lucide="home" class="w-5 h-5"></i>
             <span class="text-xs mt-1">홈</span>
         </button>
         <button onclick="showPage('community')" class="mobile-nav-btn flex flex-col items-center p-2 text-gray-600">
-            <i data-lucide="message-square" class="w-6 h-6"></i>
+            <i data-lucide="message-square" class="w-5 h-5"></i>
             <span class="text-xs mt-1">커뮤니티</span>
         </button>
+        <button onclick="showPage('calculator')" class="mobile-nav-btn flex flex-col items-center p-2 text-gray-600">
+            <i data-lucide="calculator" class="w-5 h-5"></i>
+            <span class="text-xs mt-1">분담금</span>
+        </button>
+        <button onclick="showPage('survey')" class="mobile-nav-btn flex flex-col items-center p-2 text-gray-600">
+            <i data-lucide="clipboard-list" class="w-5 h-5"></i>
+            <span class="text-xs mt-1">설문</span>
+        </button>
         <button onclick="showPage('vote')" class="mobile-nav-btn flex flex-col items-center p-2 text-gray-600">
-            <i data-lucide="vote" class="w-6 h-6"></i>
+            <i data-lucide="vote" class="w-5 h-5"></i>
             <span class="text-xs mt-1">투표</span>
         </button>
     </div>
@@ -470,7 +915,14 @@
 let currentPage = 'home';
 let currentCategory = 'all';
 let currentVoteFilter = 'all';
+let currentSurveyFilter = 'survey';
+let currentAdminTab = 'owners';
+let currentOwnerFilter = 'all';
+let currentSmsTarget = 'all';
+let isLoggedIn = false; // 로그인 여부
+let currentUser = null; // 현재 사용자 정보
 let isVerified = false;
+let isAdmin = false; // 관리자 여부
 let currentVerificationStep = 1;
 let verificationTimer = null;
 let verificationData = {
@@ -483,6 +935,17 @@ let verificationData = {
     propertyType: '',
     authNumber: ''
 };
+let calculatorData = {
+    currentArea: 0,
+    targetArea: 0,
+    floor: 'mid',
+    direction: '',
+    company: 580,
+    currentValue: 0
+};
+
+// 사용자 데이터 (localStorage에 저장)
+let users = [];
 
 // 더미 데이터
 let posts = [
@@ -994,7 +1457,7 @@ function addComment(postId) {
     const newComment = {
         id: Date.now(),
         postId,
-        author: '김재건',
+        author: currentUser ? currentUser.name : '익명',
         role: 'owner',
         verified: isVerified,
         content,
@@ -1041,7 +1504,7 @@ function addReply(postId, commentId) {
     
     const newReply = {
         id: Date.now(),
-        author: '김재건',
+        author: currentUser ? currentUser.name : '익명',
         role: 'owner',
         verified: isVerified,
         content,
@@ -1822,6 +2285,8 @@ function openDaumPostcode() {
 
 function selectAddress(address) {
     verificationData.address = address;
+    console.log('📍 주소 저장됨:', address);
+    console.log('📦 verificationData:', verificationData);
     document.getElementById('selected-address-text').textContent = address;
     document.getElementById('selected-address').classList.remove('hidden');
     checkPropertyComplete();
@@ -1856,6 +2321,13 @@ function checkPropertyComplete() {
 
 function completeVerification(page) {
     isVerified = true;
+    
+    // 추진위원회 멤버인지 체크 (예시: 특정 이름이면 관리자)
+    if (verificationData.name === '추진위원회' || verificationData.name === '김재건') {
+        isAdmin = true;
+        document.getElementById('admin-nav').classList.remove('hidden');
+        showToast('👑 관리자 권한이 활성화되었습니다!');
+    }
     
     // 전역 상태 업데이트
     updateVerificationStatus();
@@ -1894,6 +2366,65 @@ function updateVerificationStatus() {
         </div>
         <div class="text-sm font-semibold text-gray-900">✓ 인증완료</div>
     `;
+    
+    // 홈 페이지 소유 단지 정보 표시
+    document.getElementById('home-unverified-notice').classList.add('hidden');
+    document.getElementById('home-verified-district').classList.remove('hidden');
+    
+    // 인증한 주소로 단지명 추출 (개선된 로직)
+    const address = verificationData.address || '서울시 서초구 잠원동 123-4';
+    let districtName = '';
+    
+    console.log('🏘️ 주소 기반 단지 추출 시작:', address);
+    
+    // 1순위: 특정 동 이름 매핑
+    if (address.includes('잠원동')) {
+        districtName = '신반포4지구';
+        console.log('✅ 잠원동 → 신반포4지구');
+    } else if (address.includes('서초동')) {
+        districtName = '서초1구역';
+        console.log('✅ 서초동 → 서초1구역');
+    } else if (address.includes('방배동')) {
+        districtName = '방배1구역';
+        console.log('✅ 방배동 → 방배1구역');
+    } else if (address.includes('반포')) {
+        districtName = '신반포5지구';
+        console.log('✅ 반포 → 신반포5지구');
+    } 
+    // 2순위: 동 이름 추출 (○○동)
+    else {
+        const dongMatch = address.match(/([^\s]+동)/);
+        if (dongMatch) {
+            districtName = `${dongMatch[1]} 재개발구역`;
+            console.log('✅ 동 이름 추출:', dongMatch[1], '→', districtName);
+        } 
+        // 3순위: 구 이름 추출 (○○구)
+        else {
+            const guMatch = address.match(/([^\s]+구)/);
+            if (guMatch) {
+                districtName = `${guMatch[1]} 재개발구역`;
+                console.log('✅ 구 이름 추출:', guMatch[1], '→', districtName);
+            } 
+            // 4순위: 도로명 추출 (○○로, ○○길)
+            else {
+                const roadMatch = address.match(/([^\s]+(로|길))/);
+                if (roadMatch) {
+                    districtName = `${roadMatch[1]} 재개발구역`;
+                    console.log('✅ 도로명 추출:', roadMatch[1], '→', districtName);
+                } 
+                // 최후: 주소 전체 사용
+                else {
+                    districtName = `${address.split(' ')[0]} 재개발구역`;
+                    console.warn('⚠️ 동/구/도로명 모두 실패, 첫 단어 사용:', districtName);
+                }
+            }
+        }
+    }
+    
+    console.log('🎯 최종 단지명:', districtName);
+    
+    document.getElementById('home-district-name').textContent = districtName;
+    document.getElementById('home-district-info').textContent = `조합설립인가 단계 · 2025년 3월 진행중 · ${address}`;
     
     // 투표 페이지 다시 렌더링
     if (currentPage === 'vote') {
@@ -2037,7 +2568,7 @@ function submitPost() {
         category,
         title,
         content,
-        author: '김재건',
+        author: currentUser ? currentUser.name : '익명',
         role: 'owner',
         verified: isVerified,
         likes: 0,
@@ -2059,6 +2590,667 @@ function submitPost() {
     showToast('게시글이 등록되었습니다! ✅');
 }
 
+// ===== Task 4: AI 분담금 계산기 =====
+function selectDirection(dir) {
+    calculatorData.direction = dir;
+    document.querySelectorAll('.direction-btn').forEach(btn => {
+        btn.classList.remove('border-blue-600', 'bg-blue-50', 'text-blue-600');
+        btn.classList.add('border-gray-300');
+    });
+    event.target.classList.add('border-blue-600', 'bg-blue-50', 'text-blue-600');
+}
+
+function calculateCost() {
+    // 입력값 수집
+    const currentArea = parseFloat(document.getElementById('current-area').value) || 0;
+    const targetArea = parseFloat(document.getElementById('target-area').value) || 0;
+    const floor = document.getElementById('current-floor').value;
+    const company = parseInt(document.getElementById('construction-company').value);
+    const currentValue = parseFloat(document.getElementById('current-value').value) || 0;
+    const direction = calculatorData.direction;
+    
+    if (!currentArea || !targetArea || !currentValue || !direction) {
+        alert('모든 항목을 입력해주세요.');
+        return;
+    }
+    
+    // AI 분석 시뮬레이션
+    showToast('🤖 AI가 분석 중입니다...');
+    
+    setTimeout(() => {
+        // 계산 로직
+        const areaDiff = targetArea - currentArea; // 증평 평수
+        const constructionCost = targetArea * company; // 신규 공사비
+        const refund = currentValue; // 기존 감정가 환급
+        
+        // 프리미엄 계산
+        let premium = 0;
+        if (floor === 'high') premium += areaDiff * 50; // 고층 가산
+        if (floor === 'low') premium -= areaDiff * 30; // 저층 감산
+        
+        if (direction === '남향') premium += areaDiff * 100;
+        else if (direction === '남동' || direction === '남서') premium += areaDiff * 70;
+        else if (direction === '동향') premium += areaDiff * 30;
+        else if (direction === '북향') premium -= areaDiff * 50;
+        
+        // 최종 분담금
+        const totalCost = constructionCost - refund + premium;
+        const perPyeong = Math.round(totalCost / areaDiff);
+        
+        // 결과 표시
+        document.getElementById('calculator-placeholder').classList.add('hidden');
+        document.getElementById('calculator-result').classList.remove('hidden');
+        
+        document.getElementById('result-amount').textContent = totalCost.toLocaleString() + '만원';
+        document.getElementById('result-per-pyeong').textContent = `평당 ${perPyeong.toLocaleString()}만원`;
+        document.getElementById('result-new-area').textContent = targetArea + '평 (증평 ' + areaDiff + '평)';
+        document.getElementById('result-construction').textContent = constructionCost.toLocaleString() + '만원';
+        document.getElementById('result-refund').textContent = '-' + refund.toLocaleString() + '만원';
+        document.getElementById('result-premium').textContent = '+' + premium.toLocaleString() + '만원';
+        
+        // ECharts 비교 차트
+        renderComparisonChart(totalCost);
+        
+        lucide.createIcons();
+        showToast('✅ 분석이 완료되었습니다!');
+    }, 1500);
+}
+
+function renderComparisonChart(myCost) {
+    const chart = echarts.init(document.getElementById('comparison-chart'));
+    
+    // 유사 단지 랜덤 데이터
+    const similar1 = Math.round(myCost + Math.random() * 2000 - 1000);
+    const similar2 = Math.round(myCost + Math.random() * 2000 - 1000);
+    const similar3 = Math.round(myCost + Math.random() * 2000 - 1000);
+    
+    const option = {
+        tooltip: { 
+            trigger: 'axis',
+            formatter: function(params) {
+                return params[0].name + '<br/>' + 
+                       '<strong style="font-size: 16px;">' + 
+                       params[0].value.toLocaleString() + '만원</strong>';
+            }
+        },
+        grid: {
+            top: '20%',
+            bottom: '10%',
+            left: '10%',
+            right: '5%'
+        },
+        xAxis: {
+            type: 'category',
+            data: ['우리 단지', '반포A단지', '잠원B단지', '서초C단지'],
+            axisLabel: {
+                fontSize: 12,
+                color: '#4b5563'
+            }
+        },
+        yAxis: {
+            type: 'value',
+            name: '분담금 (만원)',
+            nameTextStyle: {
+                fontSize: 12,
+                color: '#6b7280'
+            },
+            axisLabel: {
+                formatter: function(value) {
+                    return (value / 1000).toFixed(0) + 'K';
+                },
+                fontSize: 11,
+                color: '#9ca3af'
+            }
+        },
+        series: [{
+            data: [
+                { value: Math.round(myCost), itemStyle: { color: '#2563eb' } },
+                { value: similar1, itemStyle: { color: '#94a3b8' } },
+                { value: similar2, itemStyle: { color: '#94a3b8' } },
+                { value: similar3, itemStyle: { color: '#94a3b8' } }
+            ],
+            type: 'bar',
+            barWidth: '60%',
+            label: {
+                show: true,
+                position: 'top',
+                formatter: function(params) {
+                    return params.value.toLocaleString() + '만';
+                },
+                fontSize: 13,
+                fontWeight: 'bold',
+                color: '#1f2937'
+            },
+            emphasis: {
+                itemStyle: {
+                    shadowBlur: 10,
+                    shadowOffsetX: 0,
+                    shadowColor: 'rgba(0, 0, 0, 0.3)'
+                }
+            }
+        }]
+    };
+    
+    chart.setOption(option);
+    
+    // 반응형 처리
+    window.addEventListener('resize', function() {
+        chart.resize();
+    });
+}
+
+// ===== Task 2: 전자 설문조사 + 동의서 =====
+let surveys = [
+    {
+        id: 1,
+        type: 'survey',
+        title: '단지 편의시설 만족도 조사',
+        description: '현재 단지 편의시설에 대한 만족도를 조사합니다',
+        status: 'active',
+        endDate: '2025-04-20',
+        participated: false,
+        totalVoters: 1247,
+        currentVotes: 687,
+        questions: [
+            { q: '수영장 & 피트니스 시설', type: 'rating' },
+            { q: '도서관 & 스터디룸', type: 'rating' },
+            { q: '주차 시설', type: 'rating' }
+        ]
+    },
+    {
+        id: 2,
+        type: 'consent',
+        title: '추진위원회 구성 동의서',
+        description: '재건축 추진위원회 구성에 대한 동의를 구합니다',
+        status: 'active',
+        endDate: '2025-04-10',
+        legal: true,
+        ownerOnly: true,
+        participated: false,
+        totalVoters: 1247,
+        currentVotes: 923,
+        required: 1000
+    }
+];
+
+function filterSurveys(type) {
+    currentSurveyFilter = type;
+    document.querySelectorAll('.survey-tab-btn').forEach(btn => {
+        btn.classList.remove('active', 'bg-blue-600', 'text-white');
+        btn.classList.add('bg-gray-100', 'text-gray-600');
+    });
+    event.target.classList.add('active', 'bg-blue-600', 'text-white');
+    event.target.classList.remove('bg-gray-100', 'text-gray-600');
+    renderSurveys();
+}
+
+function renderSurveys() {
+    const container = document.getElementById('surveys-container');
+    const filtered = surveys.filter(s => currentSurveyFilter === 'survey' ? s.type === 'survey' : s.type === 'consent');
+    
+    container.innerHTML = filtered.map(survey => {
+        const participation = (survey.currentVotes / survey.totalVoters * 100).toFixed(1);
+        const icon = survey.type === 'survey' ? 'clipboard-list' : 'file-text';
+        
+        return `
+            <div class="bg-white rounded-2xl shadow-md p-6 hover:shadow-lg transition">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                            <i data-lucide="${icon}" class="w-6 h-6 text-blue-600"></i>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-900">${survey.title}</h3>
+                            <p class="text-sm text-gray-600">${survey.description}</p>
+                        </div>
+                    </div>
+                    <span class="px-3 py-1 text-sm rounded-full bg-green-100 text-green-700">진행중</span>
+                </div>
+                
+                ${survey.legal ? '<div class="mb-3 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm"><i data-lucide="shield" class="w-4 h-4 inline text-yellow-600"></i> 법적 효력 있는 동의서</div>' : ''}
+                ${survey.ownerOnly && !isVerified ? '<div class="mb-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-center"><i data-lucide="lock" class="w-4 h-4 inline text-blue-600"></i> 소유자 인증이 필요합니다 <button onclick="startVerification()" class="text-blue-600 hover:text-blue-700 font-semibold ml-2">지금 인증하기 →</button></div>' : ''}
+                
+                <div class="mb-4">
+                    <div class="flex items-center justify-between text-sm mb-2">
+                        <span class="text-gray-600">참여율</span>
+                        <span class="font-semibold text-gray-900">${participation}% (${survey.currentVotes}/${survey.totalVoters}명)</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div class="bg-blue-600 h-2 rounded-full progress-bar" style="width: ${participation}%"></div>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-2">마감: ${survey.endDate}</div>
+                </div>
+                
+                ${survey.participated ? 
+                    '<button class="w-full px-4 py-3 bg-gray-100 text-gray-600 rounded-lg font-semibold">참여 완료 ✓</button>' :
+                    '<button onclick="participateSurvey(' + survey.id + ')" class="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold">참여하기</button>'
+                }
+            </div>
+        `;
+    }).join('');
+    
+    lucide.createIcons();
+}
+
+function participateSurvey(id) {
+    const survey = surveys.find(s => s.id === id);
+    if (survey.ownerOnly && !isVerified) {
+        startVerification();
+        return;
+    }
+    
+    if (confirm(`"${survey.title}"에 참여하시겠습니까?`)) {
+        survey.participated = true;
+        survey.currentVotes++;
+        renderSurveys();
+        showToast('✅ 참여가 완료되었습니다!');
+    }
+}
+
+// ===== Task 3: 소유자 명부 + 관리자 대시보드 =====
+let owners = [];
+for (let i = 1; i <= 50; i++) {
+    owners.push({
+        id: i,
+        name: '김소유' + i,
+        address: '서초구 잠원동 ' + (100 + i) + '-' + (i % 10),
+        area: 25 + Math.floor(Math.random() * 20),
+        verified: Math.random() > 0.3,
+        lastActivity: Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000
+    });
+}
+
+function switchAdminTab(tab) {
+    currentAdminTab = tab;
+    document.querySelectorAll('.admin-tab').forEach(btn => {
+        btn.classList.remove('active', 'bg-blue-600', 'text-white');
+        btn.classList.add('bg-gray-100', 'text-gray-600');
+    });
+    event.target.classList.add('active', 'bg-blue-600', 'text-white');
+    event.target.classList.remove('bg-gray-100', 'text-gray-600');
+    
+    document.querySelectorAll('.admin-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    document.getElementById('admin-' + tab).classList.remove('hidden');
+    
+    if (tab === 'owners') renderOwners();
+    if (tab === 'participation') renderParticipationCharts();
+    if (tab === 'posts') renderAdminPosts();
+    
+    lucide.createIcons();
+}
+
+function filterOwners(filter) {
+    currentOwnerFilter = filter;
+    document.querySelectorAll('.owner-filter').forEach(btn => {
+        btn.classList.remove('active', 'bg-blue-600', 'text-white');
+        btn.classList.add('bg-gray-100', 'text-gray-600');
+    });
+    event.target.classList.add('active', 'bg-blue-600', 'text-white');
+    event.target.classList.remove('bg-gray-100', 'text-gray-600');
+    renderOwners();
+}
+
+function renderOwners() {
+    const tbody = document.getElementById('owners-table');
+    let filtered = owners;
+    
+    if (currentOwnerFilter === 'verified') filtered = owners.filter(o => o.verified);
+    if (currentOwnerFilter === 'unverified') filtered = owners.filter(o => !o.verified);
+    
+    tbody.innerHTML = filtered.slice(0, 20).map(owner => `
+        <tr class="hover:bg-gray-50">
+            <td class="px-4 py-3 text-sm">${owner.id}</td>
+            <td class="px-4 py-3 text-sm font-semibold">${owner.name}</td>
+            <td class="px-4 py-3 text-sm text-gray-600">${owner.address}</td>
+            <td class="px-4 py-3 text-sm">${owner.area}평</td>
+            <td class="px-4 py-3 text-sm">
+                ${owner.verified ? 
+                    '<span class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">✓ 인증완료</span>' : 
+                    '<span class="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">미인증</span>'
+                }
+            </td>
+            <td class="px-4 py-3 text-sm text-gray-600">${formatTime(owner.lastActivity)}</td>
+            <td class="px-4 py-3 text-sm">
+                <button class="text-blue-600 hover:text-blue-700 text-xs">상세</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function renderParticipationCharts() {
+    // 투표별 참여율 차트
+    const chart1 = echarts.init(document.getElementById('participation-chart'));
+    const option1 = {
+        tooltip: { trigger: 'axis' },
+        xAxis: {
+            type: 'category',
+            data: ['시공사 선정', '편의시설', '추진위 평가', '정비구역']
+        },
+        yAxis: {
+            type: 'value',
+            name: '참여율 (%)',
+            max: 100
+        },
+        series: [{
+            data: [81.5, 71.5, 96.0, 74.0],
+            type: 'bar',
+            itemStyle: { color: '#2563eb' },
+            label: {
+                show: true,
+                position: 'top',
+                formatter: '{c}%'
+            }
+        }]
+    };
+    chart1.setOption(option1);
+    
+    // 월별 활동 추이 차트
+    const chart2 = echarts.init(document.getElementById('activity-chart'));
+    const option2 = {
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['게시글', '댓글', '투표'] },
+        xAxis: {
+            type: 'category',
+            data: ['1월', '2월', '3월']
+        },
+        yAxis: {
+            type: 'value',
+            name: '건수'
+        },
+        series: [
+            { name: '게시글', data: [120, 145, 168], type: 'line', smooth: true },
+            { name: '댓글', data: [456, 523, 612], type: 'line', smooth: true },
+            { name: '투표', data: [892, 967, 1016], type: 'line', smooth: true }
+        ]
+    };
+    chart2.setOption(option2);
+}
+
+function renderAdminPosts() {
+    const container = document.getElementById('admin-posts-list');
+    container.innerHTML = posts.slice(0, 10).map(post => `
+        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div class="flex-1">
+                <div class="font-semibold text-gray-900">${post.title}</div>
+                <div class="text-sm text-gray-600">${post.author} · ${formatTime(post.timestamp)}</div>
+            </div>
+            <div class="flex gap-2">
+                <button ${post.pinned ? 'class="px-3 py-1 bg-red-100 text-red-600 rounded text-sm"' : 'class="px-3 py-1 bg-gray-200 text-gray-600 rounded text-sm"'}>
+                    ${post.pinned ? '고정 해제' : '상단 고정'}
+                </button>
+                <button class="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600">삭제</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function selectSmsTarget(target) {
+    currentSmsTarget = target;
+    document.querySelectorAll('.sms-target-btn').forEach(btn => {
+        btn.classList.remove('active', 'border-blue-600', 'bg-blue-50', 'text-blue-600');
+        btn.classList.add('border-gray-300');
+    });
+    event.target.classList.add('active', 'border-blue-600', 'bg-blue-50', 'text-blue-600');
+    event.target.classList.remove('border-gray-300');
+    
+    updateSmsCost();
+}
+
+function updateSmsCost() {
+    const content = document.getElementById('sms-content').value;
+    const length = new Blob([content]).size;
+    document.getElementById('sms-length').textContent = length;
+    
+    let count = 1247;
+    if (currentSmsTarget === 'verified') count = 892;
+    if (currentSmsTarget === 'unverified') count = 355;
+    
+    const cost = count * 20;
+    document.getElementById('sms-cost').textContent = cost.toLocaleString() + '원';
+}
+
+function sendBulkSMS() {
+    const content = document.getElementById('sms-content').value.trim();
+    if (!content) {
+        alert('메시지 내용을 입력해주세요.');
+        return;
+    }
+    
+    if (confirm('단체 문자를 발송하시겠습니까?')) {
+        showToast('📱 문자 발송 중...');
+        setTimeout(() => {
+            showToast('✅ 문자가 발송되었습니다!');
+            document.getElementById('sms-content').value = '';
+            updateSmsCost();
+        }, 1500);
+    }
+}
+
+// SMS 입력 이벤트
+setTimeout(() => {
+    const smsInput = document.getElementById('sms-content');
+    if (smsInput) {
+        smsInput.addEventListener('input', updateSmsCost);
+    }
+}, 100);
+
+// ===== 로그인/회원가입 시스템 =====
+function loadUsersFromStorage() {
+    const stored = localStorage.getItem('jeongbitalk_users');
+    if (stored) {
+        users = JSON.parse(stored);
+    }
+}
+
+function saveUsersToStorage() {
+    localStorage.setItem('jeongbitalk_users', JSON.stringify(users));
+}
+
+function checkLoginStatus() {
+    const stored = localStorage.getItem('jeongbitalk_current_user');
+    if (stored) {
+        currentUser = JSON.parse(stored);
+        isLoggedIn = true;
+        updateUIAfterLogin();
+    } else {
+        showAuthModal();
+    }
+}
+
+function showAuthModal() {
+    document.getElementById('auth-modal').classList.remove('hidden');
+    lucide.createIcons();
+}
+
+function hideAuthModal() {
+    document.getElementById('auth-modal').classList.add('hidden');
+}
+
+function switchAuthTab(tab) {
+    document.querySelectorAll('.auth-tab').forEach(btn => {
+        btn.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+        btn.classList.add('text-gray-600');
+    });
+    
+    if (tab === 'login') {
+        document.getElementById('tab-login').classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+        document.getElementById('tab-login').classList.remove('text-gray-600');
+        document.getElementById('login-form').classList.remove('hidden');
+        document.getElementById('signup-form').classList.add('hidden');
+    } else {
+        document.getElementById('tab-signup').classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+        document.getElementById('tab-signup').classList.remove('text-gray-600');
+        document.getElementById('login-form').classList.add('hidden');
+        document.getElementById('signup-form').classList.remove('hidden');
+    }
+}
+
+function handleSignup() {
+    const email = document.getElementById('signup-email').value.trim();
+    const password = document.getElementById('signup-password').value;
+    const passwordConfirm = document.getElementById('signup-password-confirm').value;
+    const name = document.getElementById('signup-name').value.trim();
+    const phone = document.getElementById('signup-phone').value.trim();
+    const agreeTerms = document.getElementById('agree-terms').checked;
+    
+    // 유효성 검증
+    if (!email || !password || !name || !phone) {
+        alert('모든 항목을 입력해주세요.');
+        return;
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        alert('올바른 이메일 형식이 아닙니다.');
+        return;
+    }
+    
+    if (password.length < 8) {
+        alert('비밀번호는 8자 이상이어야 합니다.');
+        return;
+    }
+    
+    if (password !== passwordConfirm) {
+        alert('비밀번호가 일치하지 않습니다.');
+        return;
+    }
+    
+    if (phone.length !== 11) {
+        alert('전화번호는 11자리 숫자여야 합니다.');
+        return;
+    }
+    
+    if (!agreeTerms) {
+        alert('이용약관에 동의해주세요.');
+        return;
+    }
+    
+    // 중복 체크
+    const existingUser = users.find(u => u.email === email);
+    if (existingUser) {
+        alert('이미 가입된 이메일입니다.');
+        return;
+    }
+    
+    // 사용자 생성
+    const newUser = {
+        id: Date.now(),
+        email,
+        password, // 실제로는 해시 처리 필요
+        name,
+        phone,
+        createdAt: Date.now(),
+        verified: false
+    };
+    
+    users.push(newUser);
+    saveUsersToStorage();
+    
+    showToast('✅ 회원가입이 완료되었습니다!');
+    
+    // 폼 초기화
+    document.getElementById('signup-email').value = '';
+    document.getElementById('signup-password').value = '';
+    document.getElementById('signup-password-confirm').value = '';
+    document.getElementById('signup-name').value = '';
+    document.getElementById('signup-phone').value = '';
+    document.getElementById('agree-terms').checked = false;
+    
+    // 로그인 탭으로 전환
+    setTimeout(() => {
+        switchAuthTab('login');
+        document.getElementById('login-email').value = email;
+    }, 500);
+}
+
+function handleLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const rememberMe = document.getElementById('remember-me').checked;
+    
+    if (!email || !password) {
+        alert('이메일과 비밀번호를 입력해주세요.');
+        return;
+    }
+    
+    // 사용자 찾기
+    const user = users.find(u => u.email === email && u.password === password);
+    
+    if (!user) {
+        alert('이메일 또는 비밀번호가 일치하지 않습니다.');
+        return;
+    }
+    
+    // 로그인 성공
+    currentUser = user;
+    isLoggedIn = true;
+    
+    if (rememberMe) {
+        localStorage.setItem('jeongbitalk_current_user', JSON.stringify(user));
+    }
+    
+    hideAuthModal();
+    updateUIAfterLogin();
+    showToast('🎉 환영합니다, ' + user.name + '님!');
+}
+
+function updateUIAfterLogin() {
+    // 헤더 업데이트
+    document.getElementById('login-button').classList.add('hidden');
+    document.getElementById('profile-button').classList.remove('hidden');
+    
+    // 사용자 정보 표시
+    const firstChar = currentUser.name.charAt(0);
+    document.getElementById('user-avatar').textContent = firstChar;
+    document.getElementById('user-avatar-menu').textContent = firstChar;
+    document.getElementById('user-name-header').textContent = currentUser.name;
+    document.getElementById('user-name-menu').textContent = currentUser.name;
+    
+    // 홈 페이지 사용자 정보 업데이트
+    document.getElementById('home-avatar').textContent = firstChar;
+    document.getElementById('home-user-name').textContent = currentUser.name + '님';
+    
+    // 인증 전이면 소유 단지 숨기기
+    if (!isVerified) {
+        document.getElementById('home-unverified-notice').classList.remove('hidden');
+        document.getElementById('home-verified-district').classList.add('hidden');
+    }
+    
+    // verificationData에 이름 설정 (인증 시 사용)
+    verificationData.name = currentUser.name;
+    verificationData.phone = currentUser.phone;
+    
+    lucide.createIcons();
+}
+
+function handleLogout() {
+    if (confirm('로그아웃 하시겠습니까?')) {
+        currentUser = null;
+        isLoggedIn = false;
+        isVerified = false;
+        isAdmin = false;
+        
+        localStorage.removeItem('jeongbitalk_current_user');
+        
+        // UI 초기화
+        document.getElementById('login-button').classList.remove('hidden');
+        document.getElementById('profile-button').classList.add('hidden');
+        document.getElementById('admin-nav').classList.add('hidden');
+        
+        // 홈으로 이동
+        showPage('home');
+        
+        showToast('👋 로그아웃 되었습니다');
+        
+        // 로그인 화면 표시
+        setTimeout(() => {
+            showAuthModal();
+        }, 1000);
+    }
+}
+
 function showToast(message) {
     const toast = document.createElement('div');
     toast.className = 'fixed bottom-24 md:bottom-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-lg shadow-lg z-50 fade-in';
@@ -2073,6 +3265,17 @@ function showToast(message) {
 // 검색 이벤트
 document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
+    
+    // localStorage에서 사용자 데이터 로드
+    loadUsersFromStorage();
+    
+    // 로그인 상태 체크
+    checkLoginStatus();
+    
+    // 초기 렌더링
+    renderSurveys();
+    renderOwners();
+    
     showPage('home');
     
     // 검색 입력 이벤트
@@ -2082,6 +3285,12 @@ document.addEventListener('DOMContentLoaded', () => {
             searchInput.addEventListener('input', () => {
                 renderPosts();
             });
+        }
+        
+        // SMS 입력 이벤트
+        const smsInput = document.getElementById('sms-content');
+        if (smsInput) {
+            smsInput.addEventListener('input', updateSmsCost);
         }
     }, 100);
     
